@@ -33,17 +33,7 @@ def get_transactions(
 
     return response.data
 
-@router.post("/", response_model=TransactionResponse)
-def create_transaction(transaction: TransactionCreate):
 
-    response = (
-        supabase
-        .table(table)
-        .insert(transaction.model_dump(mode="json"))
-        .execute()
-    )
-
-    return response.data[0]
 
 @router.get("/{id}", response_model=TransactionResponse)
 def get_transaction(id: int):
