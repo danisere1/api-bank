@@ -147,3 +147,42 @@ def test_post_transaction(mock_supabase):
     assert data["amount"] == "-60"
     assert data["category"] == "Transporte"
     assert data["type"] == "expense"
+
+def test_get_transaction_not_found(mock_supabase):
+    response = client.get("/transactions/999")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Transaction not found"
+    }
+
+def test_post_transaction_invalid(mock_supabase):
+    transaction = {
+        "description": "Gasolina",
+        "amount": "esto-no-es-un-numero",
+        "category": "Transporte",
+        "type": "expense"
+    }
+
+    response = client.post(
+        "/transactions/",
+        json=transaction
+    )
+
+    assert response.status_code == 422
+
+def test_get_transactions_by_date(mock_supabase):
+    response = client.get(
+        "/transactions/",
+        params={
+            "date_from": "2026-09-13T00:00:00",
+            "date_to": "2026-09-13T23:59:59"
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == 1
