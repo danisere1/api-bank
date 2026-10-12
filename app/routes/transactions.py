@@ -3,7 +3,11 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 
 from app.services.supabase import supabase
-from app.schemas.transactions import TransactionCreate, TransactionResponse
+from app.schemas.transactions import (
+    TransactionCreate,
+    TransactionResponse,
+    TransactionUpdate,
+)
 
 table = "transactions"
 
@@ -39,11 +43,33 @@ def create_transaction(transaction: TransactionCreate):
     response = (
         supabase
         .table(table)
-        .insert(transaction.model_dump(mode="json"))
+        .upsert(
+            transaction.model_dump(mode="json"),
+            on_conflict="external_id",
+            ignore_duplicates=True,
+        )
+        .select("*")
         .execute()
     )
 
-    return response.data[0]
+    if response.data:
+        return response.data[0]
+
+    existing_response = (
+        supabase
+        .table(table)
+        .select("*")
+        .eq("external_id", transaction.external_id)
+        .execute()
+    )
+
+    if not existing_response.data:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve transaction after insert",
+        )
+
+    return existing_response.data[0]
 
 @router.get("/{id}", response_model=TransactionResponse)
 def get_transaction(id: int):
@@ -65,7 +91,7 @@ def get_transaction(id: int):
     return response.data[0]
 
 @router.put("/{id}", response_model=TransactionResponse)
-def update_transaction(id: int, transaction: TransactionCreate):
+def update_transaction(id: int, transaction: TransactionUpdate):
 
     response = (
         supabase

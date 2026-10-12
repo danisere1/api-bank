@@ -65,6 +65,19 @@ class MockQuery:
 
         return self
 
+    def upsert(self, data, on_conflict=None, ignore_duplicates=False):
+        existing = [
+            transaction
+            for transaction in self.supabase.data
+            if transaction.get(on_conflict) == data.get(on_conflict)
+        ]
+
+        if existing and ignore_duplicates:
+            self.data = []
+            return self
+
+        return self.insert(data)
+
     def execute(self):
         return MockResponse(self.data)
 
@@ -127,6 +140,7 @@ def test_get_transaction(mock_supabase):
 
 def test_post_transaction(mock_supabase):
     transaction = {
+        "external_id": "expense-gasolina-001",
         "description": "Gasolina",
         "amount": -60.00,
         "category": "Transporte",
@@ -147,6 +161,40 @@ def test_post_transaction(mock_supabase):
     assert data["amount"] == "-60"
     assert data["category"] == "Transporte"
     assert data["type"] == "expense"
+    assert data["external_id"] == "expense-gasolina-001"
+
+
+def test_post_transaction_with_existing_external_id_returns_existing(mock_supabase):
+    transaction = {
+        "external_id": "expense-gasolina-001",
+        "description": "Gasolina",
+        "amount": -60.00,
+        "category": "Transporte",
+        "type": "expense"
+    }
+
+    first_response = client.post("/transactions/", json=transaction)
+    retry_transaction = {**transaction, "description": "Reintento"}
+    retry_response = client.post("/transactions/", json=retry_transaction)
+
+    assert first_response.status_code == 200
+    assert retry_response.status_code == 200
+    assert retry_response.json() == first_response.json()
+    assert len(mock_supabase.data) == 2
+
+
+def test_post_transaction_requires_external_id(mock_supabase):
+    transaction = {
+        "description": "Gasolina",
+        "amount": -60.00,
+        "category": "Transporte",
+        "type": "expense"
+    }
+
+    response = client.post("/transactions/", json=transaction)
+
+    assert response.status_code == 422
+
 
 def test_get_transaction_not_found(mock_supabase):
     response = client.get("/transactions/999")
@@ -155,6 +203,7 @@ def test_get_transaction_not_found(mock_supabase):
     assert response.json() == {
         "detail": "Transaction not found"
     }
+
 
 def test_post_transaction_invalid(mock_supabase):
     transaction = {

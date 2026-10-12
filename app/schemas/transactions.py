@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class TransactionType(str, Enum):
@@ -10,7 +10,7 @@ class TransactionType(str, Enum):
     EXPENSE = "expense"
 
 
-class TransactionCreate(BaseModel):
+class TransactionBase(BaseModel):
     type: TransactionType
     description: str
     amount: Decimal
@@ -25,6 +25,24 @@ class TransactionCreate(BaseModel):
 
         return self
 
-class TransactionResponse(TransactionCreate):
+
+class TransactionCreate(TransactionBase):
+    external_id: str
+
+    @field_validator("external_id")
+    @classmethod
+    def validate_external_id(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("external_id cannot be empty.")
+
+        return value
+
+
+class TransactionUpdate(TransactionBase):
+    pass
+
+
+class TransactionResponse(TransactionBase):
     id: int
     created_at: datetime
+    external_id: str | None = None

@@ -7,6 +7,7 @@ from app.schemas.transactions import TransactionCreate
 def valid_transaction(**overrides):
     data = {
         "date": "2026-09-13T10:00:00",
+        "external_id": "transaction-test-001",
         "description": "Compra supermercado",
         "amount": -50.00,
         "category": "Alimentación",
@@ -56,10 +57,18 @@ def test_income_with_negative_amount_fails():
             )
         )
 
+
 def test_invalid_type_fails():
     with pytest.raises(ValidationError):
         TransactionCreate(
             **valid_transaction(
                 type="invalid_type"
             )
+        )
+
+
+def test_empty_external_id_fails():
+    with pytest.raises(ValidationError):
+        TransactionCreate(
+            **valid_transaction(external_id="  ")
         )
